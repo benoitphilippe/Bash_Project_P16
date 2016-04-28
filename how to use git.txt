@@ -1,5 +1,6 @@
-git clone url dossier : clone le répertoire dans le dossier
+git clone <url> <dossier> : clone le répertoire dans le dossier
 git pull : met à jour le dossier créer
-git add files : notifie les changements
-git commit -m : créer un commit
-git push : met à jour le dossier sur le serveur
+git add <files> : notifie les changements sur les fichiers
+git status : indique les changement opérer
+git commit -m  <messages>: créer un commit avec un message
+git push : met à jour le dossier sur le serveur après le commit
