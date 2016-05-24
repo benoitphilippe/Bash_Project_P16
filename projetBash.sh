@@ -87,6 +87,10 @@ do
 			datem1=$(stat -c %z $fichier1)
 			datem2=$(stat -c %z $fichier2)
 			echo $datem1 $datem2
+			
+			type1=$(file $fichier1)
+			type2=$(file $fichier2)
+			echo $type1 $type2
 		fi
 
 			if test $taille1 -eq $taille2 && $acces1 -eq $acces2 && $datem1 -eq $datem2
