@@ -15,7 +15,12 @@ echo
 if test -f $HOME/Programmes/.synchro
 then
 	echo "le journal entre les deux répertoires existe"
-	repertoireA= head -1 $HOME/Programmes/.synchro
+	repertoireA= readlink $( head -n -1 $HOME/Programmes/.synchro) 
+	#echo $( head -n 1 $HOME/Programmes/.synchro )
+	echo $repertoireA
+	repertoireA= $(sed -n '1p' $HOME/Programmes/.synchro)
+	repertoireB= $( sed -n '2p' $HOME/Programmes/.synchro)
+	echo "$repertoireA $repertoireB sont les meilleurs"
 	
 else
 	echo "le journal entre les deux répertoires n'existe pas"
@@ -53,8 +58,58 @@ else
 fi
 
 
+
+repertoireA=/home/victor/DossierA
+repertoireB=/home/victor/DossierB
+
+echo "Vérification des dossiers"
+for fichier1 in $repertoireA/*;do
+	fichier2=`echo $repertoireB/$( basename $fichier1 )` #on place dans la variable le chemin absolu vers le potentiel fichier2 
+	#echo $fichier1 $fichier2
+	
+	if test -e $fichier2 #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
+	then
+		echo "le fichier $fichier2 existe"
+		
+		if [[ -f $fichier1 && -f $fichier2 ]] #on verifie que les 2 fichiers sont du même type
+		then
+		
+		#on vérifie les métadonnées des deux fichiers		
+		taille1=$(stat -c %s $fichier1)
+		taille2=$(stat -c %s $fichier2)
+		echo $taille1 $taille2
+
+		acces1=$(stat -c %A $fichier1)
+		acces2=$(stat -c %A $fichier2)
+		echo $acces1 $acces2
+		
+		datem1=$(stat -c %z $fichier1)
+		datem2=$(stat -c %z $fichier2)
+		echo $datem1 $datem2
+		
+		if test $taille1 -eq $taille2 && $acces1 -eq $acces2 && $datem1 -eq $datem2
+		then
+			echo "les fichiers sont identiques, il ne faut pas les modifier"
+		else
+			echo "erreur: Fichiers différents"
+			echo "lequel modifier?  
+		fi
+
+		
+		
+	else
+		echo "le fichier $fichier2 n'existe pas"
+	fi
+done
+
+
+
+
+
 #2eme Partie
 #cette Partie consiste à synchroniser les deux répertoires, le tout en modifiant le journal
+
+
 
 
 
