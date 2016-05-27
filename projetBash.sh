@@ -1,56 +1,204 @@
 #!/bin/bash
 clear
 
+# ------------------------- affiche l'aide pour les options du script --------------------------------------------
+
+
+
+function print_help {
+	# print on the screen how to use it
+	echo ""
+	echo -e "bash $0 [\e[4moptions\e[0m ...]"
+	echo "|---------------------------------------------------------------------------------------------|"
+	echo -e " -c 			: création d'un nouveau système de synchronisation"
+	echo -e " -s \e[36mDIRECTORY\e[0m		: dans quel dossier se situe le .synchro (~/ par default)"
+	echo -e " -A \e[36mDIRECTORY\e[0m		: où se situe le répertoire A (à utiliser avec l'option -c)"
+	echo -e " -B \e[36mDIRECTORY\e[0m		: où se situe le répertoire B (à utiliser avec l'option -c)"
+	echo "|---------------------------------------------------------------------------------------------|"
+}
+
+
+# ------------------------------------- variables pour le script -----------------------------------------------
+
+
+
+PATHSYNCHRO="$HOME"
+repertoireA=""
+repertoireB=""
+NEW='OFF'	#indique si l'on doit créer un nouveau système de sauvegarde
+
+
+
+
+# ---------------------------------------- gestion des paramètre pour le scripts ----------------------------------------------------
+
+
+
+while [[ $# > 0 ]]
+do
+key="$1"
+
+case $key in
+	#check the method asked
+    -c|-create)
+		NEW='ON' # l'utilisateur veut que l'on créer un nouveau système de synchronisation
+    	;;
+	-s)
+		PATHSYNCHRO="$2"
+		shift
+		;;
+	-A)
+		repertoireA="$2"
+		shift
+		;;
+	-B)
+		repertoireB="$2"
+		shift
+		;;
+    -h|-help|help|Help|HELP) # print help and exit the script
+		print_help
+		exit 0
+		;;
+    *) # unknow option
+     	echo "$key : option inconnu"
+     	print_help
+     	exit 1
+    	;;
+	esac
+	shift # past argument or value
+done
+
+
+
+# ------------------------------------------------ message d'introduction -------------------------------------------------------------
+
+
+
 echo Bienvenue sur le projet LO14 de Benoit Philippe et Victor Bouillot
 echo Le synchroniseur de fichier
+echo ___________________________________________________________________
+echo
 echo
 
-#test if .synchro exists
-#1ere Partie
-#si le journal existe OK
-#s'il n'existe pas on en crée un avec toutes les métadonnées d'un répertoire A dont le chemin est demandé à l'utilsateur
 
 
 
-if test -f $HOME/Programmes/.synchro
-then
+# ---------------------------------------- gestion du paramètre -c dans la ligne de commande ------------------------------------------
+
+
+
+
+if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau système de sauvegarde
+	mkdir -p $PATHSYNCHRO # on créé le chemin
+	while [[ ! -d $repertoireA ]]
+	do
+		if [[ -z $repertoireA ]]; then
+			echo "répertoirA : $repertoireA n'existe pas"
+			echo "Veuillez donner le premier répertoire à synchroniser/ créer:"
+			read repertoireA
+		fi
+		mkdir -p $repertoireA
+		echo
+	done
+	while [[ ! -d $repertoireB ]]
+	do
+		if [[ -z $repertoireB ]]; then
+			echo "répertoireB : $repertoireB n'est pas un répertoire"
+			echo "Veuillez donner le deuxième répertoire à synchroniser / créer:"
+			read repertoireB
+		fi
+		mkdir -p $repertoireB
+		echo
+	done
+	echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
+	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
+
+	echo "le système de sauvegarde a bien été créer"
+
+	# on termine le programme
+	exit 0
+fi
+
+
+
+
+
+# ----------------------------script qui utilise l'intération avec l'utilisateur -----------------------------------
+
+
+
+
+
+
+
+# ------------------------- on récupère les dossiers A et B à l'intérieur du .synchro --------------------------------
+
+
+
+
+
+# test si .synchro existe
+# 1ere Partie
+# si le journal existe OK
+# s'il n'existe pas on en crée un avec toutes les métadonnées d'un répertoire A dont le chemin est demandé à l'utilsateur
+
+if test -f "$PATHSYNCHRO/.synchro"
+then # pas de problème, le fichier .syncro existe
+
 	echo "le journal entre les deux répertoires existe"
-	repertoireA= readlink $( head -n -1 $HOME/Programmes/.synchro) 
+	repertoireA= readlink $( head -n -1 "$PATHSYNCHRO/.synchro") 
 	#echo $( head -n 1 $HOME/Programmes/.synchro )
 	echo $repertoireA
-	repertoireA= $(sed -n '1p' $HOME/Programmes/.synchro)
-	repertoireB= $( sed -n '2p' $HOME/Programmes/.synchro)
+	repertoireA= $(sed -n '1p' "$PATHSYNCHRO/.synchro")
+	repertoireB= $( sed -n '2p' "$PATHSYNCHRO/.synchro")
 	echo "$repertoireA $repertoireB sont les meilleurs"
-	
+
+
+
+
+
+# ---------------------------- le .synchro n'existe pas, il faut le créer --------------------------------------------------
+
+
+
+
 else
 	echo "le journal entre les deux répertoires n'existe pas"
-	echo "le journal vient d'être créé"
-	echo "Veuillez donner le premier répertoire à synchroniser:"
-	read repertoireA
 
-	while [ ! -d $repertoireA ]
-	do
-		echo "$repertoireA n'est pas un répertoire"
-		echo "Veuillez donner le premier répertoire à synchroniser:"
-		read repertoireA
+	while [[ ! -f "$PATHSYNCHRO/.synchro" ]]; do
+		echo "Où voulez-vous positionnez le fichier .synchro ?"
+		read PATHSYNCHRO
+		mkdir -p $PATHSYNCHRO # on créé le chemin
+		touch "$PATHSYNCHRO/.synchro"
+		echo 
 	done
 
-	echo "Veuillez donner le deuxième répertoire à synchroniser:"
-	read repertoireB
-
-	while [ ! -d $repertoireB ]
+	while [[ ! -d $repertoireA ]]
 	do
-		echo "$repertoireB n'est pas un répertoire"
-		echo "Veuillez donner le deuxième répertoire à synchroniser:"
+		echo "répertoire A : $repertoireA n'est pas un répertoire"
+		echo "Veuillez donner le premier répertoire à synchroniser/créer:"
+		read repertoireA
+		mkdir -p $repertoireA
+		echo
+	done
+
+	while [[ ! -d $repertoireB ]]
+	do
+		echo "répertoire B :$repertoireB n'est pas un répertoire"
+		echo "Veuillez donner le deuxième répertoire à synchroniser/créer:"
 		read repertoireB
+		mkdir -p $repertoireB
+		echo
 	done
 		
-	echo "$repertoireA" > $HOME/Programmes/.synchro
-	echo "$repertoireB" >> $HOME/Programmes/.synchro
+	echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
+	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
 
 	#test pour voir ce qu'il y a dans le journal
+
+	echo "le journal vient d'être créé : $PATHSYNCHRO/.synchro"
 	echo
-	cat $HOME/Programmes/.synchro
+	exit 0
 	
 
 	#on demandera à l'utilisateur 2 répertoires
@@ -59,8 +207,17 @@ fi
 
 
 
-repertoireA=/home/victor/DossierA
-repertoireB=/home/victor/DossierB
+
+#------------------------------- fin de la récupération du .synchro ---------------------------------
+
+
+
+
+
+# -------------------------------on syncronise les deux dossiers ---------------------------------------
+
+
+
 
 echo "Vérification des dossiers"
 for fichier1 in $repertoireA/*
