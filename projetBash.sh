@@ -17,6 +17,28 @@ function print_help {
 	echo "|---------------------------------------------------------------------------------------------|"
 }
 
+# ---------------------------------------- Création du Journal ----------------------------------------------------
+
+creerJournal(){
+dossier=$1
+PATHSYNCHRO=$2
+
+echo "Rentrée des données Journal"
+for fichier in $dossier/*
+do
+	taille=$(stat -c %s $fichier)
+	acces=$(stat -c %A $fichier)
+	datem=$(stat -c %z $fichier)
+	type=$(file $fichier)
+	echo "$fichier>$taille>$acces>$datem>$type" >> "$PATHSYNCHRO/.synchro"
+	
+	#if [[ -d $fichier ]]
+	#then
+	#	creerJournal $fichier $PATHSYNCHRO
+	#fi  
+ 
+done
+}
 
 # ------------------------------------- variables pour le script -----------------------------------------------
 
@@ -30,7 +52,7 @@ NEW='OFF'	#indique si l'on doit créer un nouveau système de sauvegarde
 
 
 
-# ---------------------------------------- gestion des paramètre pour le scripts ----------------------------------------------------
+# ---------------------------------------- gestion des paramètre pour le script ----------------------------------------------------
 
 
 
@@ -113,17 +135,16 @@ if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau sys
 	echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
 	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
 
-	echo "le système de sauvegarde a bien été créer"
-
-	# on termine le programme
-	exit 0
+	
+	creerJournal $repertoireA $PATHSYNCHRO
+	echo "le système de sauvegarde a bien été crée"
 fi
 
 
 
 
 
-# ----------------------------script qui utilise l'intération avec l'utilisateur -----------------------------------
+# ----------------------------script qui utilise l'intéraction avec l'utilisateur -----------------------------------
 
 
 
@@ -198,7 +219,7 @@ else
 
 	echo "le journal vient d'être créé : $PATHSYNCHRO/.synchro"
 	echo
-	exit 0
+	creerJournal $repertoireA $PATHSYNCHRO
 	
 
 	#on demandera à l'utilisateur 2 répertoires
@@ -219,13 +240,20 @@ fi
 
 
 
+Synchronisation(){
+dossierA=$1
+dossierB=$2
+
+
 echo "Vérification des dossiers"
-for fichier1 in $repertoireA/*
+for fichier1 in $dossierA/*
 do
-	fichier2=`echo $repertoireB/$( basename $fichier1 )` #on place dans la variable le chemin absolu vers le potentiel fichier2 
+	fichier2=`echo $dossierB/"$( basename -a $fichier1 )"` #on place dans la variable le chemin absolu vers le potentiel fichier2 
 	#echo $fichier1 $fichier2
-	
-	if test -e $fichier2 #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
+	#echo $(basename -a $fichier1)
+	#remplacer les espaces par un underscore pour le basename
+
+	if [[ -e $fichier2 ]] #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
 	then
 		echo "le fichier $fichier2 existe"
 		
@@ -244,31 +272,33 @@ do
 			datem1=$(stat -c %z $fichier1)
 			datem2=$(stat -c %z $fichier2)
 			echo $datem1 $datem2
-			
-			type1=$(file $fichier1)
-			type2=$(file $fichier2)
-			echo $type1 $type2
 		fi
 
-			if test $taille1 -eq $taille2 && $acces1 -eq $acces2 && $datem1 -eq $datem2
+			if [[ $taille1 -eq $taille2 ]] && [[ $acces1 == $acces2 ]] && [[ $datem1 == $datem2 ]]
 			then
 				echo "les fichiers sont identiques, il ne faut pas les modifier"
 			else
 				echo "erreur: Fichiers différents"
-				echo "lequel modifier?"  
+				echo "lequel modifier?"
 			fi
-
 		
+		if [[ -d $fichier1 && -d $fichier2 ]]
+		then
+			echo "rentrée dans le dossier" 		
+			Synchronisation $fichier1 $fichier2
+		fi
+		
+		if [[ -f $fichier1 ]] && [[ -d $fichier2 ]] || [[ -d $fichier1 ]] && [[ -f $fichier2 ]]
+		then
+		echo "Problème de fichier et de répertoire pour $fichier1"
+		fi
 		
 	else
 		echo "le fichier $fichier2 n'existe pas"
 	fi
 
 done
-
-
-
-
+}
 
 #2eme Partie
 #cette Partie consiste à synchroniser les deux répertoires, le tout en modifiant le journal
