@@ -24,14 +24,17 @@ dossier=$1
 PATHSYNCHRO=$2
 
 echo "Rentrée des données Journal"
-for fichier in $dossier/*
+for fichier in "$dossier"*
 do
-	taille=$(stat -c %s $fichier)
-	acces=$(stat -c %A $fichier)
-	datem=$(stat -c %z $fichier)
-	type=$(file $fichier)
-	echo "$fichier>$taille>$acces>$datem>$type" >> "$PATHSYNCHRO/.synchro"
-	
+	if [[ -f "$fichier" ]]; then
+		taille=$(stat -c %s "$fichier")
+		acces=$(stat -c %A "$fichier")
+		datem=$(stat -c %z "$fichier")
+		type=$(file "$fichier")
+		echo "$fichier>$taille>$acces>$datem>$type" >> "$PATHSYNCHRO/.synchro"
+	else
+		echo "$fichier n'est pas un fichier"
+	fi
 	#if [[ -d $fichier ]]
 	#then
 	#	creerJournal $fichier $PATHSYNCHRO
@@ -119,7 +122,7 @@ if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau sys
 			echo "Veuillez donner le premier répertoire à synchroniser/ créer:"
 			read repertoireA
 		fi
-		mkdir -p $repertoireA
+		# repertoireA doit exister si l'on veut qu'il n'y ait aucune erreur
 		echo
 	done
 	while [[ ! -d $repertoireB ]]
@@ -136,7 +139,7 @@ if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau sys
 	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
 
 	
-	creerJournal $repertoireA $PATHSYNCHRO
+	creerJournal "$repertoireA" "$PATHSYNCHRO"
 	echo "le système de sauvegarde a bien été crée"
 fi
 
@@ -167,12 +170,13 @@ if test -f "$PATHSYNCHRO/.synchro"
 then # pas de problème, le fichier .syncro existe
 
 	echo "le journal entre les deux répertoires existe"
-	repertoireA= readlink $( head -n -1 "$PATHSYNCHRO/.synchro") 
-	#echo $( head -n 1 $HOME/Programmes/.synchro )
-	echo $repertoireA
-	repertoireA= $(sed -n '1p' "$PATHSYNCHRO/.synchro")
-	repertoireB= $( sed -n '2p' "$PATHSYNCHRO/.synchro")
-	echo "$repertoireA $repertoireB sont les meilleurs"
+	repertoireA=$(head -1 "$PATHSYNCHRO/.synchro")
+	repertoireB=$(head -2 "$PATHSYNCHRO/.synchro" | tail -1)
+	if [[ -d $repertoireA && -d $repertoireB ]]; then
+		echo "$repertoireA $repertoireB sont valides"
+	else
+		echo "$repertoireA $repertoireB ne sont pas valides"
+	fi
 
 
 
