@@ -112,34 +112,42 @@ echo
 
 
 
-
 if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau système de sauvegarde
 	mkdir -p $PATHSYNCHRO # on créé le chemin
 	while [[ ! -d $repertoireA ]]
 	do
-		if [[ -z $repertoireA ]]; then
-			echo "répertoirA : $repertoireA n'existe pas"
-			echo "Veuillez donner le premier répertoire à synchroniser/ créer:"
-			read repertoireA
-		fi
+		echo "répertoirA : $repertoireA n'existe pas"
+		echo "Veuillez donner le premier répertoire à synchroniser:"
+		read repertoireA
 		# repertoireA doit exister si l'on veut qu'il n'y ait aucune erreur
 		echo
 	done
 	while [[ ! -d $repertoireB ]]
 	do
-		if [[ -z $repertoireB ]]; then
-			echo "répertoireB : $repertoireB n'est pas un répertoire"
-			echo "Veuillez donner le deuxième répertoire à synchroniser / créer:"
-			read repertoireB
-		fi
+		echo "répertoireB : $repertoireB n'est pas un répertoire"
+		echo "Veuillez donner le deuxième répertoire à synchroniser / créer:"
+		read repertoireB
 		mkdir -p $repertoireB
 		echo
 	done
-	echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
-	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
-
 	
-	creerJournal "$repertoireA" "$PATHSYNCHRO"
+	if [[ "$repertoireA" = /* ]]; then
+		echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
+	else
+		echo "$(pwd)/$repertoireA" > "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
+	fi
+
+	if [[ "$repertoireB" = /* ]]; then
+		echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
+	else
+		echo "$(pwd)/$repertoireB" >> "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
+	fi
+	
+	if [[ "$repertoireA" = /* ]]; then
+		creerJournal "$repertoireA" "$PATHSYNCHRO"
+	else
+		creerJournal "$(pwd)/$repertoireA" "$PATHSYNCHRO"
+	fi
 	echo "le système de sauvegarde a bien été crée"
 fi
 
@@ -215,15 +223,25 @@ else
 		mkdir -p $repertoireB
 		echo
 	done
-		
-	echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
-	echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
+	
+	if [[ "$repertoireA" = /* ]]; then
+		echo "$repertoireA" > "$PATHSYNCHRO/.synchro"
+	else
+		echo "$(pwd)/$repertoireA" > "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
+	fi
 
-	#test pour voir ce qu'il y a dans le journal
-
-	echo "le journal vient d'être créé : $PATHSYNCHRO/.synchro"
-	echo
-	creerJournal $repertoireA $PATHSYNCHRO
+	if [[ "$repertoireB" = /* ]]; then
+		echo "$repertoireB" >> "$PATHSYNCHRO/.synchro"
+	else
+		echo "$(pwd)/$repertoireB" >> "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
+	fi
+	
+	if [[ "$repertoireA" = /* ]]; then
+		creerJournal "$repertoireA" "$PATHSYNCHRO"
+	else
+		creerJournal "$(pwd)/$repertoireA" "$PATHSYNCHRO"
+	fi
+	echo "le système de sauvegarde a bien été crée"
 	
 
 	#on demandera à l'utilisateur 2 répertoires
