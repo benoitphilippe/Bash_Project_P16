@@ -23,22 +23,23 @@ creerJournal(){
 dossier=$1
 PATHSYNCHRO=$2
 
-echo "Rentrée des données Journal"
-for fichier in "$dossier"*
+echo "on est dans le dossier : $dossier"
+
+for fichier in "$dossier"/*
 do
 	if [[ -f "$fichier" ]]; then
 		taille=$(stat -c %s "$fichier")
 		acces=$(stat -c %A "$fichier")
 		datem=$(stat -c %z "$fichier")
 		type=$(file "$fichier")
+		echo "$fichier à été sauvegardé dans le journal"
 		echo "$fichier>$taille>$acces>$datem>$type" >> "$PATHSYNCHRO/.synchro"
+	elif [[ -d "$fichier" ]]; then
+		echo "$fichier est un dossier" 
+		creerJournal "$fichier" "$PATHSYNCHRO"
 	else
-		echo "$fichier n'est pas un fichier"
+		echo "$fichier non sauvable"
 	fi
-	#if [[ -d $fichier ]]
-	#then
-	#	creerJournal $fichier $PATHSYNCHRO
-	#fi  
  
 done
 }
