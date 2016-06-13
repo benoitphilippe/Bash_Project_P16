@@ -30,9 +30,10 @@ if [[ ! -d "$dossierA" || ! -d "$dossierB" || ! -f "$PATHSYNCHRO/.synchro" ]]; t
 	exit 1
 fi
 
-
+# parcours du dossierA
 for fichier1 in "$dossierA"/*
 do
+	# on recupére le chemin hypothétique vers le fichier du fichier dossier B
 	fichier2=`echo $dossierB/$( basename "$fichier1" )` #on place dans la variable le chemin absolu vers le potentiel fichier2 
 	
 	if [[ -e "$fichier2" ]] #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
@@ -52,6 +53,7 @@ do
 
 			base=$(basename "$fichier1")
 
+			# on recupére les données concernant le fichier dans le journal
 			taille3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f2)
 			acces3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f3)
 			datem3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f4)
@@ -84,7 +86,7 @@ do
 				else
 					echo
 					echo les fichiers $(basename "$fichier1") ne sont pas conforme au journal
-					contenue=$(diff -y "$fichier1" "$fichier2")
+					contenue=$(diff -qy "$fichier1" "$fichier2")
 					
 					if [[ -z "$contenue" ]]; then # si il n'y a aucune différence entre les deux fichier
 						echo mise à jour des methadonnées de $(basename "$fichier1")
@@ -141,11 +143,113 @@ do
 			Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
 			dossierB="${dossierB%/*}"
 			echo "retour dans ----- > $dossierB"
-		fi
 		
-		if [[ -f "$fichier1" ]] && [[ -d "$fichier2" ]] || [[ -d "$fichier1" ]] && [[ -f "$fichier2" ]]
+		elif [[ -f "$fichier1" ]] && [[ -d "$fichier2" ]]
 			then
-			echo "Problème de fichier et de répertoire pour $fichier1"
+			echo "problème 	: $fichier1 est un fichier"
+			echo "			: $fichier2 est un dossier"
+			end='false'
+			while [[ $end = 'false' ]]; do
+				echo "Que voulez vous faire ?"
+				echo "1)	faire de $fichier1 un dossier"
+				echo "2)	faire de $fichier2 un fichier"
+				echo "3) 	supprimer les deux"
+				echo "4)	rennomer "$(basename "$fichier2")" en "$(basename "$fichier2")"(2)"
+				echo "5)	rien"
+				read -r -p "réponse : " response
+				case $response in
+	    		1)
+	    			rm "$fichier1" 
+	    			mkdir "$fichier1"
+	    			echo  "on rentre dans ---- > 	"$(basename "$fichier1") 		
+					Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
+					# on retourne au dossier d'avant la récursion
+					dossierB="${dossierB%/*}"
+					echo 
+					echo "retour dans ---- > $dossierB"
+					end='true'
+	        		;;
+	        	2) 
+					rm -r "$fichier2"
+	        		cp --preserve=mode,ownership,timestamps "$fichier1" "$fichier2"
+					type=$(file "$fichier1")
+					echo "		$fichier1 -----> $fichier2"
+					echo $(basename "$fichier1")">$taille2>$acces2>$datem2>${typSe#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "fait !"
+					end='true'
+	        		;;
+	        	3)
+					rm -r "$fichier1" "$fichier2"
+					echo "$fichier1 et $fichier2 ont été supprimé"
+					end='true'
+					;;
+				4)
+					mv "$fichier1" "$fichier1(2)"
+					echo "$fichier1 renommé en $fichier1(2)"
+					end='true'
+					;;
+
+				5)
+					end='true'
+					;;
+	    		*)
+					echo "mauvaise saisie !"
+	        		;;
+				esac
+			done
+		elif [[ -d "$fichier1" ]] && [[ -f "$fichier2" ]]; then
+			echo "problème 	: $fichier1 est un dossier"
+			echo "			: $fichier2 est un fichier"
+			end='false'
+			while [[ $end = 'false' ]]; do
+				echo "Que voulez vous faire ?"
+				echo "1)	faire de $fichier2 un dossier"
+				echo "2)	faire de $fichier1 un fichier"
+				echo "3) 	supprimer les deux"
+				echo "4)	rennomer "$(basename "$fichier1")" en "$(basename "$fichier1")"(2)"
+				echo "5)	rien"
+				read -r -p "réponse : " response
+				case $response in
+	    		1)
+	    			rm "$fichier2" 
+	    			mkdir "$fichier2"
+	    			echo  "on rentre dans ---- > 	"$(basename "$fichier1") 		
+					Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
+					# on retourne au dossier d'avant la récursion
+					dossierB="${dossierB%/*}"
+					echo 
+					echo "retour dans ---- > $dossierB"
+					end='true'
+	        		;;
+	        	2) 
+					rm -r "$fichier1"
+	        		cp --preserve=mode,ownership,timestamps $fichier2 $fichier1
+					type=$(file "$fichier2")
+					echo "		$fichier2 -----> $fichier1"
+					echo $(basename "$fichier2")">$taille2>$acces2>$datem2>${typSe#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "fait !"
+					end='true'
+	        		;;
+	        	3)
+					rm -r "$fichier1" "$fichier2"
+					echo "$fichier1 et $fichier2 ont été supprimé"
+					end='true'
+					;;
+				4)
+					mv "$fichier2" "$fichier2(2)"
+					echo "$fichier2 renommé en $fichier2(2)"
+					end='true'
+					;;
+
+				5)
+					end='true'
+					;;
+	    		*)
+					echo "mauvaise saisie !"
+	        		;;
+				esac
+			done
+
 		fi
 		
 	else
@@ -196,7 +300,7 @@ do
 
 	        		mkdir "$fichier2"
 	        		echo
-	        		echo  on rentre dans ---- > 	$(basename "$fichier1") 		
+	        		echo  "on rentre dans ---- > 	"$(basename "$fichier1") 		
 					Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
 					# on retourne au dossier d'avant la récursion
 					dossierB="${dossierB%/*}"
@@ -205,7 +309,7 @@ do
 					end='true'
 	        		;;
 	        	2)
-					rm "$fichier1"
+					rm -r "$fichier1"
 					echo "$fichier1 a été supprimé"
 					end='true'
 					;;
@@ -420,6 +524,7 @@ fi
 # -------------------------------on syncronise les deux dossiers ---------------------------------------
 
 echo
+# une fois l'un, une fois l'autre pour détecter déventuel fichier supplémentaire
 Synchronisation "$repertoireA" "$repertoireB" "$PATHSYNCHRO"
 Synchronisation "$repertoireB" "$repertoireA" "$PATHSYNCHRO"
 
