@@ -17,30 +17,207 @@ function print_help {
 	echo "|---------------------------------------------------------------------------------------------|"
 }
 
-# ---------------------------------------- Création du Journal ----------------------------------------------------
+# ---------------------------------- fonction de synchronisation ---------------------------------------
 
-creerJournal(){
-dossier=$1
-PATHSYNCHRO=$2
+function Synchronisation(){
+dossierA=$1
+dossierB=$2
+PATHSYNCHRO=$3
 
-echo "on est dans le dossier : $dossier"
+# verification des varibles
+if [[ ! -d "$dossierA" || ! -d "$dossierB" || ! -f "$PATHSYNCHRO/.synchro" ]]; then
+	echo "entrées incorrectes $dossierA $dossierB $PATHSYNCHRO/.synchro"
+	exit 1
+fi
 
-for fichier in "$dossier"/*
+
+for fichier1 in "$dossierA"/*
 do
-	if [[ -f "$fichier" ]]; then
-		taille=$(stat -c %s "$fichier")
-		acces=$(stat -c %A "$fichier")
-		datem=$(stat -c %z "$fichier")
-		type=$(file "$fichier")
-		echo "$fichier à été sauvegardé dans le journal"
-		echo "$fichier>$taille>$acces>$datem>$type" >> "$PATHSYNCHRO/.synchro"
-	elif [[ -d "$fichier" ]]; then
-		echo "$fichier est un dossier" 
-		creerJournal "$fichier" "$PATHSYNCHRO"
+	fichier2=`echo $dossierB/$( basename "$fichier1" )` #on place dans la variable le chemin absolu vers le potentiel fichier2 
+	
+	if [[ -e "$fichier2" ]] #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
+	then
+		if [[ -f "$fichier1" && -f "$fichier2" ]] #on verifie que les 2 fichiers sont du même type
+		then
+		
+			#on vérifie les métadonnées des deux fichiers		
+			taille1=$(stat -c %s "$fichier1")
+			taille2=$(stat -c %s "$fichier2")
+
+			acces1=$(stat -c %A "$fichier1")
+			acces2=$(stat -c %A "$fichier2")
+		
+			datem1=$(stat -c %y "$fichier1")
+			datem2=$(stat -c %y "$fichier2")
+
+			base=$(basename "$fichier1")
+
+			taille3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f2)
+			acces3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f3)
+			datem3=$(grep "$base" "$PATHSYNCHRO/.synchro" | tail -1 | cut -d'>' -f4)
+
+			if [[ "$taille1" -eq "$taille2" ]] && [[ "$acces1" == "$acces2" ]] && [[ "$datem1" == "$datem2" ]]
+			then
+				if [[ "$taille1" -ne "$taille3" ]] || [[ "$acces1" != "$acces3" ]] || [[ "$datem1" != "$datem3" ]]; then
+					echo mise à jour du journal pour $(basename "$fichier1")
+					type=$(file "$fichier1")
+					echo $(basename "$fichier1")">$taille1>$acces1>$datem1>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "----- > "
+					echo "fait !"
+				fi
+			else
+				if [[ "$taille1" -eq "$taille3" ]] && [[ "$acces1" == "$acces3" ]] && [[ "$datem1" == "$datem3" ]]; then
+					echo "mise à jour : "
+					echo "		$fichier2 ----- > $fichier1"
+					cp --preserve=mode,ownership,timestamps "$fichier2" "$fichier1"
+					type=$(file "$fichier1")
+					echo $(basename "$fichier1")">$taille1>$acces1>$datem1>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "fait ! "
+
+				elif [[ "$taille3" -eq "$taille2" ]] && [[ "$acces3" == "$acces2" ]] && [[ "$datem3" == "$datem2" ]]; then
+					echo "mise à jour : "
+					echo "		$fichier1 ----- > $fichier2"
+					cp --preserve=mode,ownership,timestamps "$fichier1" "$fichier2"
+					type=$(file "$fichier1")
+					echo $(basename "$fichier1")">$taille1>$acces1>$datem1>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "fait ! "
+				else
+					echo
+					echo les fichiers $(basename "$fichier1") ne sont pas conforme au journal
+					contenue=$(diff -y "$fichier1" "$fichier2")
+					
+					if [[ -z "$contenue" ]]; then # si il n'y a aucune différence entre les deux fichier
+						echo mise à jour des methadonnées de $(basename "$fichier1")
+						cp --preserve=mode,ownership,timestamps "$fichier1" "$fichier2"
+						type=$(file "$fichier1")
+						echo $(basename "$fichier1")">$taille1>$acces1>$datem1>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+						echo "----- > "
+						echo "fait !"
+
+					else
+						echo "voici la différence entre $fichier1 et $fichier2"
+						echo "$contenue" | cat
+						echo 
+						end='false'
+						while [[ $end = 'false' ]]; do
+							echo "Que voulez vous faire ?"
+							echo "1) Garder $fichier1 "
+							echo "2) Garder $fichier2"
+							echo "3) supprimer les deux fichiers"
+							read -r -p "réponse : " response
+							case $response in
+				    		1) 
+				        		cp --preserve=mode,ownership,timestamps "$fichier1" "$fichier2"
+								type=$(file "$fichier1")
+								echo "		$fichier1 -----> $fichier2"
+								echo $(basename "$fichier1")">$taille1>$acces1>$datem1>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+								echo "fait !"
+								end='true'
+				        		;;
+				        	2) 
+				        		cp --preserve=mode,ownership,timestamps $fichier2 $fichier1
+								type=$(file "$fichier1")
+								echo "		$fichier2 -----> $fichier1"
+								echo $(basename "$fichier1")">$taille2>$acces2>$datem2>${typSe#:*}" >> "$PATHSYNCHRO/.synchro"
+								echo "fait !"
+								end='true'
+				        		;;
+				        	3)
+								rm "$fichier1" "$fichier2"
+								echo "$fichier1 et $fichier2 ont été supprimé"
+								end='true'
+								;;
+				    		*)
+								echo "mauvaise saisie !"
+				        		;;
+							esac
+						done
+					fi
+				fi
+			fi
+		elif [[ -d "$fichier1" && -d "$fichier2" ]]
+		then
+			echo " on rentre dans ---- > 	$(basename "$fichier1")" 		
+			Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
+			dossierB="${dossierB%/*}"
+			echo "retour dans ----- > $dossierB"
+		fi
+		
+		if [[ -f "$fichier1" ]] && [[ -d "$fichier2" ]] || [[ -d "$fichier1" ]] && [[ -f "$fichier2" ]]
+			then
+			echo "Problème de fichier et de répertoire pour $fichier1"
+		fi
+		
 	else
-		echo "$fichier non sauvable"
+		if [[ -f "$fichier1" ]]; then
+			end='false'
+			echo
+			echo  un fichier est absent dans $dossierB : $(basename "$fichier2")
+			echo ""
+			while [[ $end = 'false' ]]; do
+				echo "Que voulez vous faire ?"
+				echo "1) Copiez dans $dossierB"
+				echo "2) supprimez le fichier $fichier1"
+				read -r -p "réponse : " response
+				case $response in
+	    		1) 
+	        		cp --preserve=mode,ownership,timestamps "$fichier1" "$dossierB"
+	        		taille=$(stat -c %s "$fichier1")
+					acces=$(stat -c %A "$fichier1")
+					datem=$(stat -c %y "$fichier1")
+					type=$(file "$fichier1")
+					echo "		$fichier1 ---- > $fichier2"
+					echo $(basename "$fichier1")">$taille>$acces>$datem>${type#:*}" >> "$PATHSYNCHRO/.synchro"
+					echo "fait !"
+					end='true'
+	        		;;
+	        	2)
+					rm $fichier1
+					echo "$fichier1 a été supprimé"
+					end='true'
+					;;
+	    		*)
+					echo "mauvaise saisie !"
+	        		;;
+				esac
+			done
+		elif [[ -d "$fichier1" ]]; then
+			end='false'
+			echo
+			echo  un dossier est absent dans $dossierB : $(basename "$fichier2")
+			echo ""
+			while [[ $end = 'false' ]]; do
+				echo "Que voulez vous faire ?"
+				echo "1) creer le dossier dans $dossierB"
+				echo "2) supprimez le dossier $fichier1"
+				read -r -p "réponse : " response
+				case $response in
+	    		1) 
+
+	        		mkdir "$fichier2"
+	        		echo
+	        		echo  on rentre dans ---- > 	$(basename "$fichier1") 		
+					Synchronisation "$fichier1" "$fichier2" "$PATHSYNCHRO"
+					# on retourne au dossier d'avant la récursion
+					dossierB="${dossierB%/*}"
+					echo 
+					echo "retour dans ---- > $dossierB"
+					end='true'
+	        		;;
+	        	2)
+					rm "$fichier1"
+					echo "$fichier1 a été supprimé"
+					end='true'
+					;;
+	    		*)
+					echo "mauvaise saisie !"
+	        		;;
+				esac
+			done
+		else
+			echo "$fichier1 n'est pas un fichier"
+		fi
 	fi
- 
 done
 }
 
@@ -143,12 +320,8 @@ if [[ $NEW = 'ON' ]]; then # l'utilisateur demande la création d'un nouveau sys
 	else
 		echo "$(pwd)/$repertoireB" >> "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
 	fi
-	
-	if [[ "$repertoireA" = /* ]]; then
-		creerJournal "$repertoireA" "$PATHSYNCHRO"
-	else
-		creerJournal "$(pwd)/$repertoireA" "$PATHSYNCHRO"
-	fi
+
+	echo
 	echo "le système de sauvegarde a bien été crée"
 fi
 
@@ -177,7 +350,7 @@ fi
 
 if test -f "$PATHSYNCHRO/.synchro"
 then # pas de problème, le fichier .syncro existe
-
+	echo
 	echo "le journal entre les deux répertoires existe"
 	repertoireA=$(head -1 "$PATHSYNCHRO/.synchro")
 	repertoireB=$(head -2 "$PATHSYNCHRO/.synchro" | tail -1)
@@ -186,8 +359,6 @@ then # pas de problème, le fichier .syncro existe
 	else
 		echo "$repertoireA $repertoireB ne sont pas valides"
 	fi
-
-
 
 
 
@@ -237,19 +408,7 @@ else
 		echo "$(pwd)/$repertoireB" >> "$PATHSYNCHRO/.synchro" # on complète le chemin relatif
 	fi
 	
-	if [[ "$repertoireA" = /* ]]; then
-		creerJournal "$repertoireA" "$PATHSYNCHRO"
-	else
-		creerJournal "$(pwd)/$repertoireA" "$PATHSYNCHRO"
-	fi
-	echo "le système de sauvegarde a bien été crée"
-	
-
-	#on demandera à l'utilisateur 2 répertoires
-	#ensuite on créera un journal entre les deux avec toutes les données et tout et tout
 fi
-
-
 
 
 #------------------------------- fin de la récupération du .synchro ---------------------------------
@@ -260,80 +419,9 @@ fi
 
 # -------------------------------on syncronise les deux dossiers ---------------------------------------
 
+echo
+Synchronisation "$repertoireA" "$repertoireB" "$PATHSYNCHRO"
+Synchronisation "$repertoireB" "$repertoireA" "$PATHSYNCHRO"
 
 
-
-Synchronisation(){
-dossierA=$1
-dossierB=$2
-
-
-echo "Vérification des dossiers"
-for fichier1 in $dossierA/*
-do
-	fichier2=`echo $dossierB/"$( basename -a $fichier1 )"` #on place dans la variable le chemin absolu vers le potentiel fichier2 
-	#echo $fichier1 $fichier2
-	#echo $(basename -a $fichier1)
-	#remplacer les espaces par un underscore pour le basename
-
-	if [[ -e $fichier2 ]] #on vérifie s'il y a bien un fichier de ce nom là dans le repertoireB
-	then
-		echo "le fichier $fichier2 existe"
-		
-		if [[ -f $fichier1 && -f $fichier2 ]] #on verifie que les 2 fichiers sont du même type
-		then
-		
-			#on vérifie les métadonnées des deux fichiers		
-			taille1=$(stat -c %s $fichier1)
-			taille2=$(stat -c %s $fichier2)
-			echo $taille1 $taille2
-
-			acces1=$(stat -c %A $fichier1)
-			acces2=$(stat -c %A $fichier2)
-			echo $acces1 $acces2
-		
-			datem1=$(stat -c %z $fichier1)
-			datem2=$(stat -c %z $fichier2)
-			echo $datem1 $datem2
-		fi
-
-			if [[ $taille1 -eq $taille2 ]] && [[ $acces1 == $acces2 ]] && [[ $datem1 == $datem2 ]]
-			then
-				echo "les fichiers sont identiques, il ne faut pas les modifier"
-			else
-				echo "erreur: Fichiers différents"
-				echo "lequel modifier?"
-			fi
-		
-		if [[ -d $fichier1 && -d $fichier2 ]]
-		then
-			echo "rentrée dans le dossier" 		
-			Synchronisation $fichier1 $fichier2
-		fi
-		
-		if [[ -f $fichier1 ]] && [[ -d $fichier2 ]] || [[ -d $fichier1 ]] && [[ -f $fichier2 ]]
-		then
-		echo "Problème de fichier et de répertoire pour $fichier1"
-		fi
-		
-	else
-		echo "le fichier $fichier2 n'existe pas"
-	fi
-
-done
-}
-
-#2eme Partie
-#cette Partie consiste à synchroniser les deux répertoires, le tout en modifiant le journal
-
-
-
-
-
-#rm $HOME/Programmes/.synchro
-
-
-
-
-
-
+exit 0
